@@ -12,10 +12,8 @@ namespace OpenITTools_LanTricorder
     class Program
     {
         static void Main(string[] args)
-        {
-            
+        {  
             Console.WriteLine("Enter loop wait time in seconds--");
-
             int timeoutPeriodS = Convert.ToInt32(Console.ReadLine());
             int timeoutPeriodMS = timeoutPeriodS * 1000;
             int timeoutPeriodMIN = (timeoutPeriodS / 60);
@@ -24,7 +22,6 @@ namespace OpenITTools_LanTricorder
             loopit:
             bool pingable = false;
             Ping pinger = null;
-
             string FileName = "c:\\lantricorder-iplist.txt";
 
             //ip list enumeration
@@ -33,45 +30,49 @@ namespace OpenITTools_LanTricorder
             for (int i = 0; i < TotalLines; i++)
             {
               string textRedd = File.ReadLines(FileName).Skip(i).Take(1).First();    
-
                  try
                 {
-                    long pingTime = 0;
                     pingable = false;
                     pinger = null;
                     pinger = new Ping();
                     PingReply reply = pinger.Send(textRedd);
-                    pingable = reply.Status == IPStatus.Success;
-                    pingTime = reply.RoundtripTime;
-
+                    pingable = reply.Status == IPStatus.Success;                
                     Console.WriteLine(i + " - " + textRedd + " " + pingable);
-                }
 
+                    if (pingable == false)
+                    {
+                        Console.WriteLine(i + " - FAILURE IP " + textRedd);
+                        try
+                        {
+                            //send the event data over udp to pre-specified message receiver at ipadd.parse address and port below
+                            Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram,ProtocolType.Udp);
+                            IPAddress serverAddr = IPAddress.Parse("192.168.50.205");
+                            IPEndPoint endPoint = new IPEndPoint(serverAddr, 162);
+                            string messedge = "PING FAILURE - SEQUENCE " + i + " - FAILURE IP " + textRedd;
+                            byte[] send_buffer = Encoding.ASCII.GetBytes(messedge);
+                            sock.SendTo(send_buffer, endPoint);
+                            sock.Close();
+                        }
+                        catch{}
+                    }
+                }
                 catch (PingException)
                 {
-                    Console.WriteLine(i + " - FAILURE IP " + textRedd);
-
-
+                    Console.WriteLine(i + " - ERROR " + textRedd);
+                    
                     try
                     {
                         //send the event data over udp to pre-specified message receiver at ipadd.parse address and port below
-                        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram,
-                        ProtocolType.Udp);
-                        IPAddress serverAddr = IPAddress.Parse("[[[[ENTER THE IP OF THE UDP162 RECEIVER HERE]]]]");
+                        Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram,ProtocolType.Udp);
+                        IPAddress serverAddr = IPAddress.Parse("192.168.50.205");
                         IPEndPoint endPoint = new IPEndPoint(serverAddr, 162);
-                        string messedge = "PING FAILURE - SEQUENCE " + i + " - FAILURE IP " + textRedd;
+                        string messedge = "PING ERROR - SEQUENCE " + i + " - FAILURE IP " + textRedd;
                         byte[] send_buffer = Encoding.ASCII.GetBytes(messedge);
                         sock.SendTo(send_buffer, endPoint);
                         sock.Close();
                     }
-
-                    catch
-                    {
-
-                    }
-
+                    catch{}
                 }
-
                 finally
                 {
                     if (pinger != null)
@@ -79,13 +80,9 @@ namespace OpenITTools_LanTricorder
                         pinger.Dispose();
                     }
                 }
-
              }
-
             System.Threading.Thread.Sleep(timeoutPeriodMS);
             goto loopit;
-
         }
     }
 }
-v
